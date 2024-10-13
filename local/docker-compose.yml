@@ -1,0 +1,15 @@
+networks:
+  agronetwork:
+    name: agronetwork
+    driver: bridge
+
+services:
+  image-converter:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: image-converter
+    env_file:
+      - .env
+    networks:
+      - agronetwork

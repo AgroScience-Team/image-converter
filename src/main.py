@@ -1,3 +1,4 @@
+from ioc.application_context import ApplicationContext
 
 if __name__ == "__main__":
-    print("Hello world")
+    ApplicationContext(["src"]).run()

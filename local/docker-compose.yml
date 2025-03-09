@@ -13,3 +13,4 @@ services:
       - .env
     networks:
       - agronetwork
+    mem_limit: 2048m

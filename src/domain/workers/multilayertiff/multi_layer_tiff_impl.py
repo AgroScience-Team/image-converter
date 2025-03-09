@@ -8,6 +8,7 @@ from pydantic import parse_obj_as
 from ioc.anotations.beans.component import Component
 from ioc.common_logger import log
 from src.domain.models.multi_layer_tiff import MultiLayerTiff
+from src.domain.models.new_photos_response import NewPhotosResponse
 from src.domain.workers.worker import Worker
 
 
@@ -16,7 +17,7 @@ class MultiLayerTiffWorkerImpl(Worker):
 
     def __init__(self) -> None:
         self.minio_client = Minio(
-            'localhost:9000',
+            os.getenv("MINIO_URL"),
             access_key='minioadmin',
             secret_key='minioadmin',
             secure=False
@@ -28,19 +29,26 @@ class MultiLayerTiffWorkerImpl(Worker):
     def key(self) -> str:
         return "MultiLayerTiff"
 
-    def process(self, id: str, doc):
+    def process(self, id: str, doc) -> NewPhotosResponse:
         # Преобразуем doc в объект MultiLayerTiff
         multi_layer_tiff: MultiLayerTiff = parse_obj_as(MultiLayerTiff, doc)
 
         # Путь к мультиканальному TIFF в S3
-        path_multi_tif = f"new/{id}.{multi_layer_tiff.photoExtension}"
+        path_multi_tif = f"new/{id}.{multi_layer_tiff.extension}"
 
         # Обрабатываем TIFF файл
         self._process_tiff_file(id, path_multi_tif, multi_layer_tiff)
 
+        return NewPhotosResponse(
+            id=id,
+            date=multi_layer_tiff.date,
+            extension=multi_layer_tiff.extension,
+            contourId=multi_layer_tiff.contourId
+        )
+
     def _process_tiff_file(self, id: str, path_multi_tif: str, multi_layer_tiff: MultiLayerTiff):
         """Основная функция для обработки TIFF файла."""
-        extension: str = multi_layer_tiff.photoExtension
+        extension: str = multi_layer_tiff.extension
         try:
             log.info(f"Запуск обработки TIFF файла с id {id}.")
 
@@ -57,13 +65,17 @@ class MultiLayerTiffWorkerImpl(Worker):
                     profile = multi_tif.profile
                     num_bands = multi_tif.count
 
-                    # Обрабатываем только первые N каналов (где N — длина списка слоев)
-                    num_layers = len(multi_layer_tiff.layers)
-                    log.info(f"Найдено {num_bands} каналов, ожидается {num_layers}. Пропускаем лишние.")
+                    # Преобразуем список слоев в словарь {index: name}
+                    layer_map = {int(layer.index): layer.name for layer in multi_layer_tiff.layers}
 
-                    for band_idx in range(1, min(num_bands, num_layers) + 1):
-                        layer_name = multi_layer_tiff.layers[band_idx - 1]  # Имя слоя
-                        self._process_tiff_layer(id, local_tif_path, band_idx, layer_name, profile, multi_layer_tiff.photoExtension)
+                    log.info(f"Найдено {num_bands} каналов, обработка указанных слоев: {layer_map}")
+
+                    for index, layer_name in layer_map.items():
+                        if index > num_bands:
+                            log.warning(f"Пропуск слоя {layer_name}, так как канал {index} отсутствует в файле.")
+                            continue
+
+                        self._process_tiff_layer(id, local_tif_path, index, layer_name, profile, extension)
 
             # Удаляем локальный мультиканальный TIFF файл после обработки
             if os.path.exists(local_tif_path):
@@ -86,12 +98,13 @@ class MultiLayerTiffWorkerImpl(Worker):
             file_name = f"{id}-{layer}.{extension}"
 
             # Создаем временный файл для записи одного канала
-            with tempfile.NamedTemporaryFile(suffix=f"_{layer}.{extension}", delete=False) as temp_file:
+            with tempfile.NamedTemporaryFile(suffix=f"_{layer}.{extension}", delete=True) as temp_file:
                 output_path = temp_file.name
                 log.info(f"Начало записи во временный файл для канала {layer}")
 
                 # Открываем исходный TIFF файл и создаем новый TIFF для каждого канала
-                with rasterio.open(local_tif_path) as multi_tif, rasterio.open(output_path, 'w', **single_band_profile) as dst_band:
+                with rasterio.open(local_tif_path) as multi_tif, rasterio.open(output_path, 'w',
+                                                                               **single_band_profile) as dst_band:
                     # Чтение и запись всего канала
                     band_data = multi_tif.read(band_idx)
                     dst_band.write(band_data, indexes=1)

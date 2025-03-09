@@ -2,7 +2,7 @@ FROM python:3.10-slim
 
 RUN pip install poetry
 
-WORKDIR /ndvi-worker
+WORKDIR /image-converter
 
 COPY pyproject.toml poetry.lock ./
 
@@ -13,6 +13,7 @@ COPY src ./src
 
 ENV PYTHONPATH "${PYTHONPATH}:/image-converter"
 
-RUN poetry install
+RUN poetry install --no-root
+RUN apt update && apt install -y libexpat1
 
 CMD ["poetry", "run", "python", "./src/main.py"]

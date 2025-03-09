@@ -10,7 +10,7 @@ from ioc.kafka.kafka_conf import KafkaConf
 
 class DefaultScheduledConsumer(Consumer, Scheduled):
 
-    def __init__(self, conf: KafkaConf, obj, method, topic: str, group_id=str) -> None:
+    def __init__(self, conf: KafkaConf, obj, method, topic: str, group_id: str) -> None:
         self._consumer: KafkaConsumer = KafkaConsumer(
             topic,
             bootstrap_servers=conf.get_kafka_bootstrap_servers(),
@@ -22,10 +22,13 @@ class DefaultScheduledConsumer(Consumer, Scheduled):
             security_protocol='SASL_PLAINTEXT',
             sasl_mechanism='PLAIN',
             sasl_plain_username=conf.get_kafka_user(),
-            sasl_plain_password=conf.get_kafka_password()
+            sasl_plain_password=conf.get_kafka_password(),
+            metadata_max_age_ms=1000
         )
+
         self._obj = obj
         self._method = method
+        self._consumer.subscribe([topic])
 
     def schedule(self):
         record = self.consume()

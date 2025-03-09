@@ -1,10 +1,13 @@
 import json
 from typing import Dict
 
+from pydantic import BaseModel
+
 from ioc.anotations.beans.component import Component
 from ioc.anotations.proxy.log.log import Log
 from ioc.anotations.proxy.scheduled.kafka_listener.kafka_listener import KafkaListener
 from ioc.kafka.consumers.consumer_record import ConsumerRecord
+from ioc.kafka.producers.producer import Producer
 from src.domain.doc_repo import DocRepo
 from src.domain.listeners.abstract_listener import Listener
 from src.domain.workers.worker import Worker
@@ -21,9 +24,10 @@ def _extract_file_name(file_key: str) -> str:
 @Component()
 class NdviWorkerListener(Listener):
 
-    def __init__(self, workers: list[Worker], doc_repo: DocRepo) -> None:
+    def __init__(self, workers: list[Worker], doc_repo: DocRepo, producer: Producer) -> None:
         self.workers: Dict[str, Worker] = {worker.key(): worker for worker in workers}
         self.doc_repo = doc_repo
+        self._producer = producer
 
     @Audit("image-converter", "agro.audit.messages")
     @Log()
@@ -37,4 +41,6 @@ class NdviWorkerListener(Listener):
         print(f"Event Name: {event_name}, File Key: {file_key}")
         doc = self.doc_repo.find_by_id(file_key)
         type = doc.pop('type', "unknown")
-        self.workers.get(type).process(file_key, doc)
+        result: BaseModel = self.workers.get(type).process(file_key, doc)
+
+        self._producer.produce("agro.new.photos", "", result.json())

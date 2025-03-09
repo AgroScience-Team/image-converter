@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
 
+from pydantic import BaseModel
+
 
 class Worker(ABC):
 
@@ -8,5 +10,5 @@ class Worker(ABC):
         pass
 
     @abstractmethod
-    def process(self, id: str, doc):
+    def process(self, id: str, doc) -> BaseModel:
         pass

@@ -27,7 +27,7 @@ jobs:
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Poetry install
-        run: poetry install --with dev
+        run: poetry install --with dev --no-root
 
       - name: Run tests
         run: PYTHONPATH=$(pwd) poetry run pytest

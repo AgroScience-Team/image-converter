@@ -9,15 +9,6 @@ class Layer(BaseModel):
 
 class MultiLayerTiff(BaseModel):
     extension: str
-    date: str
+    date: datetime
     contourId: str
     layers: List[Layer]
-
-    @model_validator(mode='before')
-    def format_date(cls, values):
-        # Получаем дату из MongoDB (предполагается, что это объект datetime)
-        date_value = values.get('date')
-        if isinstance(date_value, datetime):
-            # Форматируем дату как строку в формате 'YYYY-MM-DD'
-            values['date'] = date_value.strftime('%Y-%m-%d')
-        return values

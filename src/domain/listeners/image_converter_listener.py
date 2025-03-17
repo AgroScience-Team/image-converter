@@ -43,4 +43,5 @@ class NdviWorkerListener(Listener):
         type = doc.pop('type', "unknown")
         result: BaseModel = self.workers.get(type).process(file_key, doc)
 
-        self._producer.produce("agro.new.photos", "", result.json())
+        self._producer.produce("agro.new.photos", "", result.model_dump_json())
+        self._producer

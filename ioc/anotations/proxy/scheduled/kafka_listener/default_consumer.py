@@ -3,6 +3,7 @@ from typing import Optional
 from kafka import KafkaConsumer
 
 from ioc.anotations.proxy.scheduled.scheduled import Scheduled
+from ioc.common_logger import log
 from ioc.kafka.consumers.consumer import Consumer
 from ioc.kafka.consumers.consumer_record import ConsumerRecord
 from ioc.kafka.kafka_conf import KafkaConf
@@ -17,9 +18,9 @@ class DefaultScheduledConsumer(Consumer, Scheduled):
             group_id=group_id,
             auto_offset_reset='earliest',
             enable_auto_commit=True,
-            value_deserializer=lambda m: m.decode('utf-8'),
-            key_deserializer=lambda m: m.decode('utf-8'),
-            security_protocol='SASL_PLAINTEXT',
+            value_deserializer=lambda m: _safe_deserialize(m),
+            key_deserializer=lambda m: _safe_deserialize(m),
+            security_protocol=conf.get_kafka_security_protocol(),
             sasl_mechanism='PLAIN',
             sasl_plain_username=conf.get_kafka_user(),
             sasl_plain_password=conf.get_kafka_password(),
@@ -45,4 +46,14 @@ class DefaultScheduledConsumer(Consumer, Scheduled):
             for record in records:
                 return ConsumerRecord(key=record.key, value=record.value)
 
+        return None
+
+def _safe_deserialize(m: Optional[bytes]) -> Optional[str]:
+    """Safely deserialize a message to a string. If the message is None, return None."""
+    if m is None:
+        return None
+    try:
+        return m.decode('utf-8')
+    except Exception as e:
+        log.error(f"Error deserializing message: {e}")
         return None

@@ -40,7 +40,7 @@ class MultiLayerTiffWorkerImpl(Worker):
         self._process_tiff_file(id, path_multi_tif, multi_layer_tiff)
 
         return NewPhotosResponse(
-            id=id,
+            photoId=id,
             date=multi_layer_tiff.date,
             extension=multi_layer_tiff.extension,
             contourId=multi_layer_tiff.contourId

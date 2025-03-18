@@ -5,7 +5,7 @@ from pymongo import MongoClient
 from ioc.anotations.beans.component import Component
 from ioc.mongo.mongo import Mongo
 
-client = MongoClient(f'mongodb://files_reader:password@{os.getenv("MONGO_URL")}/file_link_hub')
+client = MongoClient(os.getenv("MONGO_CONNECTION_URL"))
 
 db = client['file_link_hub']
 collection = db['photos']
